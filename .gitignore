@@ -1,0 +1,8 @@
+
+*.pyc
+__pycache__/
+instance/
+.webassets-cache
+venv/
+*.py,cover
+*$py.class

@@ -1,44 +1,53 @@
+"""Скрипт для імпорту JSON-даних у MongoDB"""
+
 import json
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from mongoengine import connect
 from db.models import Author, Quote, Tag
-from db.base import Base
 
-engine = create_engine("postgresql+psycopg2://user:password@localhost:5432/dbname")  # Замінити на свої
-Session = sessionmaker(bind=engine)
-session = Session()
 
-def load_authors():
-    with open("data/authors.json", encoding="utf-8") as f:
-        authors = json.load(f)
-        for item in authors:
-            author = Author(
-                fullname=item["fullname"],
-                born_date=item["born_date"],
-                born_location=item["born_location"],
-                description=item["description"]
+def load_json(filename):
+    """Завантажити дані з JSON-файлу"""
+    with open(filename, "r", encoding="utf-8") as file:
+        return json.load(file)
+
+
+def seed_authors():
+    """Завантажити авторів у базу"""
+    data = load_json("data/authors.json")
+    for author_data in data:
+        author = Author(**author_data)
+        author.save()
+
+
+def seed_quotes():
+    """Завантажити цитати та теги у базу"""
+    data = load_json("data/qoutes.json")
+    for quote_data in data:
+        tags = []
+        for tag_name in quote_data.get("tags", []):
+            tag = Tag.objects(name=tag_name).first()  # pylint: disable=no-member
+            if not tag:
+                tag = Tag(name=tag_name)
+                tag.save()
+            tags.append(tag)
+        author = Author.objects(fullname=quote_data["author"]).first()  # pylint: disable=no-member
+        if author:
+            quote = Quote(
+                quote=quote_data["quote"],
+                author=author,
+                tags=tags
             )
-            session.add(author)
-        session.commit()
+            quote.save()
 
-def load_quotes():
-    with open("data/qoutes.json", encoding="utf-8") as f:
-        quotes = json.load(f)
-        for item in quotes:
-            author = session.query(Author).filter_by(fullname=item["author"]).first()
-            if not author:
-                continue
-            quote = Quote(quote=item["quote"], author=author)
-
-            for tag_name in item["tags"]:
-                tag = session.query(Tag).filter_by(name=tag_name).first()
-                if not tag:
-                    tag = Tag(name=tag_name)
-                quote.tags.append(tag)
-
-            session.add(quote)
-        session.commit()
 
 if __name__ == "__main__":
-    load_authors()
-    load_quotes()
+    connect(
+        db="quotes_db",
+        host="mongodb+srv://<your-connection-string>",
+        alias="default"
+    )
+
+    seed_authors()
+    seed_quotes()
+    print("✅ Дані успішно імпортовано.")
+

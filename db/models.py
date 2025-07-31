@@ -1,39 +1,41 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, Table
-from sqlalchemy.orm import relationship, declarative_base
-from db.base import Base
+"""MongoEngine моделі для авторів, цитат і тегів"""
+# pyright: reportMissingImports=false
 
-# Таблиця зв'язку (багато-до-багатьох)
-quote_tag = Table(
-    'quote_tag', Base.metadata,
-    Column('quote_id', ForeignKey('quotes.id'), primary_key=True),
-    Column('tag_id', ForeignKey('tags.id'), primary_key=True)
-)
+from mongoengine import Document, StringField, ReferenceField, ListField
 
-class Author(Base):
-    __tablename__ = 'authors'
 
-    id = Column(Integer, primary_key=True)
-    fullname = Column(String(255), nullable=False, unique=True)
-    born_date = Column(String(255))
-    born_location = Column(String(255))
-    description = Column(Text)
+class Tag(Document):
+    name = StringField(required=True, unique=True)
 
-    quotes = relationship('Quote', back_populates='author')
+    def to_json(self):
+        return {"id": str(self.id), "name": self.name}
 
-class Quote(Base):
-    __tablename__ = 'quotes'
 
-    id = Column(Integer, primary_key=True)
-    quote = Column(Text, nullable=False)
-    author_id = Column(Integer, ForeignKey('authors.id'))
+class Author(Document):
+    fullname = StringField(required=True, unique=True)
+    born_date = StringField()
+    born_location = StringField()
+    description = StringField()
 
-    author = relationship('Author', back_populates='quotes')
-    tags = relationship('Tag', secondary=quote_tag, back_populates='quotes')
+    def to_json(self):
+        return {
+            "id": str(self.id),
+            "fullname": self.fullname,
+            "born_date": self.born_date,
+            "born_location": self.born_location,
+            "description": self.description
+        }
 
-class Tag(Base):
-    __tablename__ = 'tags'
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String(100), unique=True)
+class Quote(Document):
+    quote = StringField(required=True)
+    author = ReferenceField(Author, reverse_delete_rule=2)
+    tags = ListField(ReferenceField(Tag))
 
-    quotes = relationship('Quote', secondary=quote_tag, back_populates='tags')
+    def to_json(self):
+        return {
+            "id": str(self.id),
+            "quote": self.quote,
+            "author": self.author.to_json() if self.author else None,
+            "tags": [tag.to_json() for tag in self.tags]
+        }
