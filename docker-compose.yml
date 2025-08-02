@@ -1,0 +1,42 @@
+version: "3.9"
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"      # для сервісів
+      - "15672:15672"    # для перегляду RabbitMQ в браузері: http://localhost:15672
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
+  producer:
+    build:
+      context: ./producer
+      dockerfile: Dockerfile
+    container_name: producer
+    depends_on:
+      - rabbitmq
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+
+  consumer_email:
+    build:
+      context: ./consumer_email
+      dockerfile: Dockerfile
+    container_name: consumer_email
+    depends_on:
+      - rabbitmq
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+
+  consumer_sms:
+    build:
+      context: ./consumer_sms
+      dockerfile: Dockerfile
+    container_name: consumer_sms
+    depends_on:
+      - rabbitmq
+    environment:
+      - RABBITMQ_HOST=rabbitmq

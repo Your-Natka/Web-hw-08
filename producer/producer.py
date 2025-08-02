@@ -1,18 +1,29 @@
 # pylint: disable=no-member
 
 import pika
+import time
 import json
 from faker import Faker
 from mongoengine import connect
 from db.models import Contact
 
-connect(db="contacts_db", host="mongodb://localhost:27017/contacts_db", alias="default")
+# Підключення до MongoDB
+connect(db="contacts_db", host="mongodb://host.docker.internal:27017/contacts_db", alias="default")
 
 fake = Faker()
 
-# Підключення до RabbitMQ
-connection = pika.BlockingConnection(pika.ConnectionParameters("localhost"))
-channel = connection.channel()
+# Підключення до RabbitMQ з повторними спробами
+for i in range(10):
+    try:
+        connection = pika.BlockingConnection(pika.ConnectionParameters(host="rabbitmq"))
+        channel = connection.channel()  # <--- ДОДАНО
+        break
+    except pika.exceptions.AMQPConnectionError:
+        print(f"RabbitMQ не готовий, спроба {i + 1}/10")
+        time.sleep(3)
+else:
+    print("❌ Не вдалося підключитися до RabbitMQ")
+    exit(1)
 
 # Створюємо черги
 channel.queue_declare(queue="email_queue")
