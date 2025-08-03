@@ -45,3 +45,15 @@ for _ in range(10):
     print(f"📤 Відправлено контакт {contact.fullname} у чергу {queue_name}")
 
 connection.close()
+
+contact = Contact(
+    fullname="Тестовий СМС",
+    email="test@example.com",
+    phone="+380671234567",
+    send_method="sms"
+).save()
+
+message = json.dumps({"id": str(contact.id)})
+channel.basic_publish(exchange="", routing_key="sms_queue", body=message)
+print(f"📤 Відправлено контакт {contact.fullname} у чергу sms_queue")
+

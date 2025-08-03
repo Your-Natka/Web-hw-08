@@ -38,12 +38,10 @@ class Quote(Document):
     
 class Contact(Document):
     fullname = StringField(required=True)
-    email = StringField(required=True)
+    email = EmailField(required=True)
     phone = StringField()
     send_method = StringField(choices=["email", "sms"], default="email")
     is_sent = BooleanField(default=False)
 
     def __str__(self):
         return f"{self.fullname} ({self.send_method}) - {self.email or self.phone}"
-    
-    email = EmailField(required=True)

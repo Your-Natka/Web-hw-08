@@ -1,45 +1,55 @@
-# pylint: disable=no-member
+# pyright: reportMissingImports=false
 
 import pika
-import time
 import json
+import time
+import traceback
 from mongoengine import connect
 from db.models import Contact
 import os
 
-connect(db="contacts_db", host=f"mongodb://{os.getenv('MONGODB_HOST')}:27017", alias="default")
+# Підключення до MongoDB
+connect(
+    db="contacts_db",
+    host=f"mongodb://{os.getenv('MONGODB_HOST')}:27017",
+    alias="default"
+)
 
-def send_sms_stub(contact: Contact):
-    print(f"📲 Надсилаємо SMS до {contact.phone}...")
-    contact.is_sent = True
-    contact.save()
+def callback(ch, method, _, body):
+    try:
+        data = json.loads(body)
+        contact_id = data.get("id")
+        contact = Contact.objects(id=contact_id).first()
 
-def callback(ch, method, properties, body):
-    data = json.loads(body)
-    contact = Contact.objects(id=data["id"]).first()
-    if contact and contact.send_method == "sms" and not contact.is_sent:
-        send_sms_stub(contact)
-    ch.basic_ack(delivery_tag=method.delivery_tag)
+        if contact and contact.send_method == "sms":
+            print(f"📲 Надсилаємо SMS до {contact.phone} ({contact.fullname})...")
+            contact.is_sent = True
+            contact.save()
+        else:
+            print(f"⚠️ Контакт {contact_id} не знайдено або спосіб не SMS")
 
-for i in range(10):
+        ch.basic_ack(delivery_tag=method.delivery_tag)
+
+    except Exception as e:
+        print(f"❌ Помилка під час обробки sms: {e}")
+        traceback.print_exc()
+        ch.basic_nack(delivery_tag=method.delivery_tag)
+
+# Очікуємо RabbitMQ
+for _ in range(10):
     try:
         connection = pika.BlockingConnection(pika.ConnectionParameters(host="rabbitmq"))
         break
     except pika.exceptions.AMQPConnectionError:
-        print("Waiting for RabbitMQ...")
+        print("⏳ Очікуємо RabbitMQ...")
         time.sleep(5)
 else:
-    print("RabbitMQ is not available. Exiting.")
+    print("❌ RabbitMQ недоступний. Завершення.")
     exit(1)
 
 channel = connection.channel()
 channel.queue_declare(queue="sms_queue")
 channel.basic_consume(queue="sms_queue", on_message_callback=callback)
 
-try:
-    print("📥 Очікуємо SMS-повідомлення...")
-    channel.start_consuming()
-except KeyboardInterrupt:
-    print("🛑 Зупинено вручну. Вихід...")
-    channel.stop_consuming()
-    connection.close()
+print("📥 Очікуємо SMS-повідомлення...")
+channel.start_consuming()
