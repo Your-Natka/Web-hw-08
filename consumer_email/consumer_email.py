@@ -7,8 +7,9 @@ import traceback
 from mongoengine import connect
 from db.models import Contact
 from bson import ObjectId
+import os
 
-connect(db="contacts_db", host="mongodb://host.docker.internal:27017/contacts_db", alias="default")
+connect(db="contacts_db", host=f"mongodb://{os.getenv('MONGODB_HOST')}:27017", alias="default")
 
 def send_email_stub(contact: Contact):
     print(f"📧 Надсилаємо email до {contact.email}...")

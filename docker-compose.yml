@@ -1,4 +1,3 @@
-version: "3.9"
 
 services:
   rabbitmq:
@@ -6,10 +5,18 @@ services:
     container_name: rabbitmq
     ports:
       - "5672:5672"      # для сервісів
-      - "15672:15672"    # для перегляду RabbitMQ в браузері: http://localhost:15672
+      - "15672:15672"    # http://localhost:15672
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
+
+  mongodb:
+    image: mongo:6
+    container_name: mongodb
+    ports:
+      - "27017:27017"    # Дозволяє підключатись до Mongo з localhost (опціонально)
+    volumes:
+      - mongodb_data:/data/db
 
   producer:
     build:
@@ -18,8 +25,10 @@ services:
     container_name: producer
     depends_on:
       - rabbitmq
+      - mongodb
     environment:
       - RABBITMQ_HOST=rabbitmq
+      - MONGODB_HOST=mongodb
 
   consumer_email:
     build:
@@ -28,8 +37,10 @@ services:
     container_name: consumer_email
     depends_on:
       - rabbitmq
+      - mongodb
     environment:
       - RABBITMQ_HOST=rabbitmq
+      - MONGODB_HOST=mongodb
 
   consumer_sms:
     build:
@@ -38,5 +49,10 @@ services:
     container_name: consumer_sms
     depends_on:
       - rabbitmq
+      - mongodb
     environment:
       - RABBITMQ_HOST=rabbitmq
+      - MONGODB_HOST=mongodb
+
+volumes:
+  mongodb_data:

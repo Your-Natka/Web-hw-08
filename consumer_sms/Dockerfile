@@ -1,9 +1,12 @@
-FROM python:3.10-slim
+# Dockerfile (у кожному сервісі)
+FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY . /app
+COPY requirements.txt .
 
-RUN pip install --no-cache-dir -r /app/requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
 
 CMD ["python3", "consumer_sms.py"]
